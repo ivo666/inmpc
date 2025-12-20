@@ -1,53 +1,55 @@
 import os
 from pathlib import Path
-from typing import Optional
-from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
 # Загружаем .env файл
 env_path = Path(__file__).parent.parent / '.env'
 load_dotenv(env_path)
 
-class DatabaseSettings(BaseSettings):
-    """Настройки базы данных"""
-    host: str = os.getenv('DB_HOST', 'localhost')
-    port: int = int(os.getenv('DB_PORT', 5432))
-    database: str = os.getenv('DB_NAME', 'inmpc')
-    user: str = os.getenv('DB_USER', 'postgres')
-    password: str = os.getenv('DB_PASSWORD', '')
+class Settings:
+    """Упрощенные настройки без Pydantic"""
+    
+    # Database
+    DB_HOST = os.getenv('DB_HOST', 'localhost')
+    DB_PORT = int(os.getenv('DB_PORT', 5432))
+    DB_NAME = os.getenv('DB_NAME', 'inmpc')
+    DB_USER = os.getenv('DB_USER', 'postgres')
+    DB_PASSWORD = os.getenv('DB_PASSWORD', '')
+    
+    # API
+    API_TOKEN = os.getenv('API_TOKEN', '')
+    BASE_URL = os.getenv('BASE_URL', 'https://api.webmaster.yandex.net/v4')
+    USER_ID = os.getenv('USER_ID', '')
+    HOST_ID = os.getenv('HOST_ID', '')
+    
+    # App
+    LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+    DAYS_BACK = int(os.getenv('DAYS_BACK', 20))
+    BATCH_SIZE = int(os.getenv('BATCH_SIZE', 500))
     
     @property
-    def connection_string(self) -> str:
-        return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
-
-class APISettings(BaseSettings):
-    """Настройки API Яндекс.Вебмастер"""
-    token: str = os.getenv('API_TOKEN', '')
-    base_url: str = os.getenv('BASE_URL', 'https://api.webmaster.yandex.net/v4')
-    user_id: str = os.getenv('USER_ID', '')
-    host_id: str = os.getenv('HOST_ID', '')
-
-class AppSettings(BaseSettings):
-    """Настройки приложения"""
-    log_level: str = os.getenv('LOG_LEVEL', 'INFO')
-    days_back: int = int(os.getenv('DAYS_BACK', 20))
-    batch_size: int = int(os.getenv('BATCH_SIZE', 500))
+    def db(self):
+        class DB:
+            @property
+            def connection_string(self):
+                return f'postgresql://{Settings.DB_USER}:{Settings.DB_PASSWORD}@{Settings.DB_HOST}:{Settings.DB_PORT}/{Settings.DB_NAME}'
+        return DB()
     
     @property
-    def headers(self) -> dict:
-        return {
-            "Authorization": f"OAuth {self.api.token}",
-            "Content-Type": "application/json"
-        }
-
-class Settings(BaseSettings):
-    """Общие настройки приложения"""
-    db: DatabaseSettings = DatabaseSettings()
-    api: APISettings = APISettings()
-    app: AppSettings = AppSettings()
+    def api(self):
+        class API:
+            token = Settings.API_TOKEN
+            base_url = Settings.BASE_URL
+            user_id = Settings.USER_ID
+            host_id = Settings.HOST_ID
+        return API()
     
-    class Config:
-        env_file = '.env'
+    @property
+    def app(self):
+        class App:
+            log_level = Settings.LOG_LEVEL
+            days_back = Settings.DAYS_BACK
+            batch_size = Settings.BATCH_SIZE
+        return App()
 
-# Создаем глобальный экземпляр настроек
 settings = Settings()
