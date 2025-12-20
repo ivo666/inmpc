@@ -1,0 +1,43 @@
+# Виртуальное окружение
+venv/
+.venv/
+env/
+ENV/
+
+# Python кэш
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# PyCharm и VS Code
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Файлы окружения
+.env
+.env.local
+*.env
+
+# Логи и базы данных
+*.log
+*.sqlite3
+*.db
+logs/*.log
+
+# Распределенные файлы
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Операционные системы
+.DS_Store
+Thumbs.db
+
+# Тестовые данные
+test_data/
