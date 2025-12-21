@@ -4,6 +4,7 @@ import math
 from typing import List, Dict, Any, Tuple
 import sys
 from pathlib import Path
+from sqlalchemy import text  # Добавляем импорт
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.etl.base import BaseETL
@@ -23,7 +24,7 @@ class PositionsGeneratorETL(BaseETL):
         self.logger.info("🔍 Поиск данных для генерации позиций...")
         
         with get_db() as db:
-            query = f"""
+            query = text(f"""
             SELECT 
                 wa.id, wa.impressions, wa.clicks, wa.position
             FROM {self.source_table} wa
@@ -33,7 +34,7 @@ class PositionsGeneratorETL(BaseETL):
                   WHERE wp.id = wa.id
               )
             ORDER BY wa.id
-            """
+            """)
             
             result = db.execute(query)
             columns = result.keys()
@@ -124,11 +125,11 @@ class PositionsGeneratorETL(BaseETL):
         
         with get_db() as db:
             for item in data:
-                insert_query = f"""
+                insert_query = text(f"""
                 INSERT INTO {self.target_table} 
                 (id, impression_position, impression_order)
                 VALUES (:id, :impression_position, :impression_order)
-                """
+                """)
                 
                 db.execute(insert_query, {
                     'id': int(item['id']),

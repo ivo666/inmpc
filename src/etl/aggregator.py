@@ -3,6 +3,7 @@ import numpy as np
 from typing import Tuple
 import sys
 from pathlib import Path
+from sqlalchemy import text  # Добавляем импорт
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.etl.base import BaseETL
@@ -23,15 +24,15 @@ class AggregatedETL(BaseETL):
         
         with get_db() as db:
             # Получаем максимальную дату из целевой таблицы
-            max_date_query = f"""
+            max_date_query = text(f"""
                 SELECT COALESCE(MAX(date), '2000-01-01') as max_date 
                 FROM {self.target_table}
-            """
+            """)
             max_date = db.execute(max_date_query).fetchone()[0]
             self.logger.info(f"📅 Последняя дата в целевой таблице: {max_date}")
             
             # Загружаем данные, которых нет в целевой таблице
-            query = f"""
+            query = text(f"""
             SELECT * FROM {self.source_table} 
             WHERE date > :max_date 
                OR (date = :max_date AND NOT EXISTS (
@@ -42,7 +43,7 @@ class AggregatedETL(BaseETL):
                      AND p.device = {self.source_table}.device
                ))
             ORDER BY date, query, page_path, device
-            """
+            """)
             
             result = db.execute(query, {"max_date": max_date})
             columns = result.keys()
@@ -98,7 +99,7 @@ class AggregatedETL(BaseETL):
         
         with get_db() as db:
             # Получаем последний ID
-            last_id_query = f"SELECT COALESCE(MAX(id), 0) FROM {self.target_table}"
+            last_id_query = text(f"SELECT COALESCE(MAX(id), 0) FROM {self.target_table}")
             last_id = db.execute(last_id_query).fetchone()[0]
             
             # Создаем новые ID
@@ -106,11 +107,11 @@ class AggregatedETL(BaseETL):
             
             # Вставляем данные
             for _, row in df.iterrows():
-                insert_query = f"""
+                insert_query = text(f"""
                 INSERT INTO {self.target_table} 
                 (id, date, query, page_path, device, demand, impressions, clicks, position)
                 VALUES (:id, :date, :query, :page_path, :device, :demand, :impressions, :clicks, :position)
-                """
+                """)
                 
                 db.execute(insert_query, {
                     'id': int(row['id']),

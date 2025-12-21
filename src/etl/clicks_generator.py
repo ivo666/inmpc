@@ -3,6 +3,7 @@ import numpy as np
 from typing import List, Dict, Any, Tuple
 import sys
 from pathlib import Path
+from sqlalchemy import text  # Добавляем импорт
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.etl.base import BaseETL
@@ -23,7 +24,7 @@ class ClicksGeneratorETL(BaseETL):
         self.logger.info("🔍 Поиск данных для генерации кликов...")
         
         with get_db() as db:
-            query = f"""
+            query = text(f"""
             SELECT 
                 wa.id, wa.clicks
             FROM {self.source_table} wa
@@ -33,7 +34,7 @@ class ClicksGeneratorETL(BaseETL):
                   WHERE wc.id = wa.id
               )
             ORDER BY wa.id
-            """
+            """)
             
             result = db.execute(query)
             columns = result.keys()
@@ -52,17 +53,17 @@ class ClicksGeneratorETL(BaseETL):
     def _get_positions_for_id(self, row_id: int) -> List[Tuple[int, int]]:
         """Получаем позиции для конкретного ID"""
         with get_db() as db:
-            query = f"""
+            query = text(f"""
             SELECT impression_position, impression_order 
             FROM {self.positions_table}
             WHERE id = :row_id
             ORDER BY impression_order
-            """
+            """)
             
             result = db.execute(query, {'row_id': row_id})
             return [(int(row[0]), int(row[1])) for row in result.fetchall()]
     
-    def _distribute_clicks(self, clicks: int, positions_with_order: List[Tuple[int, int]]) -> List[Dict[str, Any]]:
+    def _distribute_clicks(self, row_id: int, clicks: int, positions_with_order: List[Tuple[int, int]]) -> List[Dict[str, Any]]:
         """Распределение кликов по показам"""
         if clicks == 0 or len(positions_with_order) == 0:
             return []
@@ -126,7 +127,7 @@ class ClicksGeneratorETL(BaseETL):
             positions = self._get_positions_for_id(row_id)
             
             if positions:
-                click_assignments = self._distribute_clicks(clicks, positions)
+                click_assignments = self._distribute_clicks(row_id, clicks, positions)
                 all_clicks.extend(click_assignments)
         
         self.logger.info(f"🎯 Сгенерировано {len(all_clicks)} кликов")
@@ -141,11 +142,11 @@ class ClicksGeneratorETL(BaseETL):
         
         with get_db() as db:
             for item in data:
-                insert_query = f"""
+                insert_query = text(f"""
                 INSERT INTO {self.target_table} 
                 (id, click_position, impression_order)
                 VALUES (:id, :click_position, :impression_order)
-                """
+                """)
                 
                 db.execute(insert_query, {
                     'id': int(item['id']),

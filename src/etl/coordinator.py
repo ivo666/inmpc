@@ -1,11 +1,13 @@
 import sys
 from pathlib import Path
 from loguru import logger
+from sqlalchemy import text  # Добавляем импорт
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.etl.aggregator import AggregatedETL
 from src.etl.positions_generator import PositionsGeneratorETL
 from src.etl.clicks_generator import ClicksGeneratorETL
+from src.models.database import get_db  # Добавляем импорт
 
 
 class ETLCoordinator:
@@ -64,7 +66,7 @@ class ETLCoordinator:
         self.logger.info("\n🔍 ПРОВЕРКА СОГЛАСОВАННОСТИ ДАННЫХ")
         
         checks = [
-            ("Строки без позиций", """
+            ("Строки без позиций", text("""
                 SELECT COUNT(*) as missing_positions
                 FROM ppl.webmaster_aggregated wa
                 WHERE wa.impressions > 0 
@@ -72,18 +74,16 @@ class ETLCoordinator:
                       SELECT 1 FROM ppl.webmaster_positions wp 
                       WHERE wp.id = wa.id
                   )
-            """),
-            ("Клики без позиций", """
+            """)),
+            ("Клики без позиций", text("""
                 SELECT COUNT(*) as orphaned_clicks
                 FROM ppl.webmaster_clicks wc
                 WHERE NOT EXISTS (
                     SELECT 1 FROM ppl.webmaster_positions wp 
                     WHERE wp.id = wc.id AND wp.impression_order = wc.impression_order
                 )
-            """)
+            """))
         ]
-        
-        from src.models.database import get_db
         
         with get_db() as db:
             for check_name, query in checks:
