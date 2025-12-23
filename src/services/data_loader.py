@@ -14,12 +14,18 @@ class DataLoader:
     
     def load_data_for_date(self, target_date: str) -> int:
         print(f"Загрузка данных за {target_date}...")
+        
+        # Получаем все URL для даты
+        urls = self.client.get_urls_for_date(target_date)
+        print(f"Найдено {len(urls)} URL для обработки")
+        
+        if not urls:
+            print(f"Нет URL с данными за {target_date}")
+            return 0
+        
         total_records = 0
         
-        # Временно: берем только тестовый URL для проверки
-        test_urls = ['/sale']  # Позже заменим на получение всех URL
-        
-        for url in test_urls:
+        for url in urls:
             for device in self.device_types:
                 records = self.client.get_queries_for_url_and_date(target_date, url, device)
                 saved = self._save_records(records)
